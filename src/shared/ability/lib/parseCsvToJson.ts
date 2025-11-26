@@ -71,17 +71,7 @@ const buildParsedData = (rows: string[][]): ParsedPlannedResults => {
   return parsedData;
 };
 
-const detectStructureType = (rows: string[][], fileName?: string): "prinj" | "trpo" => {
-  if (fileName) {
-    const upper = fileName.toUpperCase();
-    if (upper.includes("ТРПО")) {
-      return "trpo";
-    }
-    if (upper.includes("ПРИНЖ")) {
-      return "prinj";
-    }
-  }
-
+const detectStructureType = (rows: string[][]): "prinj" | "trpo" => {
   const dataRows = rows.slice(1);
   const hasAnyIndicatorColumn = dataRows.some((row) => (row[1] ?? "").toString().trim() !== "");
   return hasAnyIndicatorColumn ? "prinj" : "trpo";
@@ -92,18 +82,7 @@ const parseNewStructure = (rows: string[][]): ParsedPlannedResults => {
 };
 
 const parseOldStructure = (rows: string[][]): ParsedPlannedResults => {
-  const base = buildParsedData(rows);
-  const parsedData: ParsedPlannedResults = {};
-
-  Object.keys(base).forEach((key) => {
-    const row = base[key];
-    parsedData[key] = {
-      ...row,
-      indicator: "",
-    };
-  });
-
-  return parsedData;
+  return buildParsedData(rows);
 };
 
 export const parseCsvToJson = async (file: File): Promise<ParsedPlannedResults> => {
@@ -115,13 +94,13 @@ export const parseCsvToJson = async (file: File): Promise<ParsedPlannedResults> 
 
   if (extension === "csv") {
     const rows = await parseCsvFile(file);
-    const structureType = detectStructureType(rows, file.name);
+    const structureType = detectStructureType(rows);
     return structureType === "prinj" ? parseNewStructure(rows) : parseOldStructure(rows);
   }
 
   if (extension === "xlsx" || extension === "xls") {
     const rows = await parseXlsxFile(file);
-    const structureType = detectStructureType(rows, file.name);
+    const structureType = detectStructureType(rows);
     return structureType === "prinj" ? parseNewStructure(rows) : parseOldStructure(rows);
   }
 
