@@ -71,10 +71,10 @@ const buildParsedData = (rows: string[][]): ParsedPlannedResults => {
   return parsedData;
 };
 
-const detectStructureType = (rows: string[][]): "prinj" | "trpo" => {
+const detectStructureType = (rows: string[][]): "new" | "old" => {
   const dataRows = rows.slice(1);
-  const hasAnyIndicatorColumn = dataRows.some((row) => (row[1] ?? "").toString().trim() !== "");
-  return hasAnyIndicatorColumn ? "prinj" : "trpo";
+  const hasAnyFirstColumnValue = dataRows.some((row) => (row[0] ?? "").toString().trim() !== "");
+  return hasAnyFirstColumnValue ? "new" : "old";
 };
 
 const parseNewStructure = (rows: string[][]): ParsedPlannedResults => {
@@ -82,7 +82,42 @@ const parseNewStructure = (rows: string[][]): ParsedPlannedResults => {
 };
 
 const parseOldStructure = (rows: string[][]): ParsedPlannedResults => {
-  return buildParsedData(rows);
+  const dataRows = rows.slice(1);
+  const parsedData: ParsedPlannedResults = {};
+  let idx = 0;
+
+  dataRows.forEach((row) => {
+    const competenceCode = (row[1] ?? "").toString().trim();
+    const disciplineCode = (row[2] ?? "").toString().trim();
+    const text = (row[3] ?? "").toString().trim();
+
+    if (!competenceCode && !disciplineCode && !text) {
+      return;
+    }
+
+    if (competenceCode && !disciplineCode && text) {
+      parsedData[idx++] = {
+        competence: competenceCode,
+        indicator: "",
+        results: text,
+      };
+      return;
+    }
+
+    if (!competenceCode && disciplineCode && text) {
+      parsedData[idx++] = {
+        competence: "",
+        indicator: "",
+        results: text,
+      };
+    }
+  });
+
+  if (Object.keys(parsedData).length === 0) {
+    throw new Error("Данные не найдены");
+  }
+
+  return parsedData;
 };
 
 export const parseCsvToJson = async (file: File): Promise<ParsedPlannedResults> => {
@@ -95,13 +130,13 @@ export const parseCsvToJson = async (file: File): Promise<ParsedPlannedResults> 
   if (extension === "csv") {
     const rows = await parseCsvFile(file);
     const structureType = detectStructureType(rows);
-    return structureType === "prinj" ? parseNewStructure(rows) : parseOldStructure(rows);
+    return structureType === "new" ? parseNewStructure(rows) : parseOldStructure(rows);
   }
 
   if (extension === "xlsx" || extension === "xls") {
     const rows = await parseXlsxFile(file);
     const structureType = detectStructureType(rows);
-    return structureType === "prinj" ? parseNewStructure(rows) : parseOldStructure(rows);
+    return structureType === "new" ? parseNewStructure(rows) : parseOldStructure(rows);
   }
 
   throw new Error("Поддерживаются только файлы форматов .csv и .xlsx");
